@@ -43,7 +43,7 @@ def get_args():
     parser.add_argument('--min_prop', type=int, default=20, help='minimum proposal box size')
     
     # Directory
-    parser.add_argument('--dataroot', default='data')
+    parser.add_argument('--dataroot', default='dataset')
     parser.add_argument('--ssw_path', default='voc_2007_trainval.mat')
     parser.add_argument('--jpeg_path', default='JPEGImages')
     parser.add_argument('--text_path', default='annotations.txt')
