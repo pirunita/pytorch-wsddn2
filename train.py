@@ -10,8 +10,8 @@ import tqdm
 
 from tensorboardX import SummaryWriter
 
-from datasets.wsddn_dataset import WSDDNDataset
 from model.wsddn_vgg16 import WSDDN_VGG16
+from utils.wsddn_dataset import WSDDNDataset
 from utils.util import make_directory
 from utils.net import adjust_learning_rate, save_checkpoint
 
@@ -29,7 +29,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Train')
     
     parser.add_argument('--train', type=str, default='WSDDN', help='Training name')
-    parser.add_argument('--session', type=int, default=1, help='Distinguish training session')
+    parser.add_argument('--session', type=int, default=2, help='Distinguish training session')
     
     # Parameter
     parser.add_argument('--batch_size', type=int, default=1)
@@ -43,7 +43,7 @@ def get_args():
     parser.add_argument('--min_prop', type=int, default=20, help='minimum proposal box size')
     
     # Directory
-    parser.add_argument('--dataroot', default='dataset')
+    parser.add_argument('--dataroot', default='datasets')
     parser.add_argument('--ssw_path', default='voc_2007_trainval.mat')
     parser.add_argument('--jpeg_path', default='JPEGImages')
     parser.add_argument('--text_path', default='annotations.txt')
@@ -81,17 +81,16 @@ def train(args, model, train_dataset, board, checkpoint_dir):
                 params += [{'params': [value], 'lr': lr, 'weight_decay': 0.0005}]
                 
     optimizer = torch.optim.SGD(params, momentum=0.9)
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0) 
     
-    
+    total_sum = 0
     for epoch in tqdm.tqdm(range(args.start_epoch, args.max_epochs + 1), desc='Training'):
         loss_sum = 0
         iter_sum = 0
         start_time = time.time()
         
-        train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
         
         for step, (file_name, image, proposals, labels) in tqdm.tqdm(enumerate(train_loader), desc='Dataset iterate'):
-            file_name = file_name.cuda()
             image = image.cuda()
             proposals = proposals.cuda()
             labels = labels.cuda()
@@ -102,8 +101,9 @@ def train(args, model, train_dataset, board, checkpoint_dir):
             scores, loss = model(image, proposals, image_level_label=labels)
             
             # Iterate Update
-            running_loss += loss.item()
+            loss_sum += loss.item()
             iter_sum += 1
+            total_sum += 1
             
             # Parameter update
             loss.backward()
@@ -112,7 +112,7 @@ def train(args, model, train_dataset, board, checkpoint_dir):
             
             # Visualization
             if step % args.disp_count == 0:
-                board.add_scalar('Train/loss', loss_sum / iter_sum)
+                board.add_scalar('Train/loss', loss_sum / iter_sum, total_sum)
                 t = time.time() - start_time
                 logger.info("net %s, epoch %2d, iter %4d, time: %.3f, loss: %.4f, lr: %.2e" %
                             (args.pretrained_name, epoch, step, t, loss_sum / iter_sum, lr))
@@ -137,7 +137,17 @@ def train(args, model, train_dataset, board, checkpoint_dir):
             logger.info('save model: {}'.format(checkpoint_name))
     
     board.close()
-    save_checkpoint(checkpoint, '{}_{}_{}.pth'.format(args.pretrained_name, args.session, 'final'))
+    final_checkpoint_name = os.path.join(checkpoint_dir, '{}_{}_{}.pth'.format(args.pretrained_name, args.session, 'final'))
+    checkpoint = dict()
+    checkpoint['net'] = args.pretrained_name
+    checkpoint['session'] = args.session
+    checkpoint['epoch'] = epoch
+    checkpoint['model'] = model.state_dict()
+    checkpoint['optimizer'] = optimizer.state_dict()
+    save_checkpoint(checkpoint, final_checkpoint_name)
+    
+    logger.info('save model: {}'.format(final_checkpoint_name))
+    logger.info('Training Finished..')
     
     
 if __name__ == '__main__':
@@ -149,7 +159,7 @@ if __name__ == '__main__':
     
     # Result Directory
     root_dir = args.train
-    session_dir = os.path.join(root_dir, args.session)
+    session_dir = os.path.join(root_dir, str(args.session))
     checkpoints_dir = os.path.join(session_dir, args.checkpoints_path)
     tensorboard_dir = os.path.join(session_dir, args.tensorboard_path)
     make_directory(root_dir, session_dir, checkpoints_dir, tensorboard_dir)
@@ -160,6 +170,6 @@ if __name__ == '__main__':
     
     # Train Dataset
     train_dataset = WSDDNDataset(args)
-    
+
     # Train
     train(args, model, train_dataset, board, checkpoints_dir)
