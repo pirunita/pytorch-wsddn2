@@ -38,7 +38,6 @@ class RandomRescale(object):
     
     def __call__(self, image, boxes):
         max_target_size = np.random.choice(self.target_size_list)
-        print('resize', max_target_size)
         ori_img_width, ori_img_height = image.size
         max_length = max(ori_img_width, ori_img_height)
         min_length = min(ori_img_width, ori_img_height)
@@ -68,7 +67,6 @@ class RandomHorizontalFlip(object):
         ori_img_width, ori_img_height = image.size
         
         if np.random.randint(self.label):
-            print("flip!")
             image = ImageOps.mirror(image)
             
             flipped_minX = ori_img_width - boxes[:, 2]
