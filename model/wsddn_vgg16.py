@@ -47,10 +47,10 @@ class WSDDN_VGG16(nn.Module):
         
         
     def forward(self, image, rois, proposal_score=None, image_level_label=None):
-        N = rois.size(0)
+        N = rois.size(1)
         feature_map = self.base_network(image)
-        
-        zero_padded_rois = torch.cat([torch.zeros(N, 1).to(rois), rois], 1)
+        # Assume Batchsize 1
+        zero_padded_rois = torch.cat([torch.zeros(N, 1).to(rois[0]), rois[0]], 1)
         pooled_feature_map = self.roi_pooling(feature_map, zero_padded_rois).view(N, -1)
         
         """        
