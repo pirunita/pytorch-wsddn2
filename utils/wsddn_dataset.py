@@ -24,7 +24,7 @@ class WSDDNDataset(data.Dataset):
     def __init__(self, args):
         self.args = args
         self.root = args.dataroot
-        self.datamode = args.datamode
+        self.mode = args.mode
         
         self.ssw_path = args.ssw_path
         self.jpeg_path = args.jpeg_path
@@ -47,14 +47,14 @@ class WSDDNDataset(data.Dataset):
         self.imdb = []
     
         # JSON, trainval 5011
-        with open(os.path.join(self.root, self.datamode, self.image_label_path), 'r') as jr:
+        with open(os.path.join(self.root, self.mode, self.image_label_path), 'r') as jr:
             self.image_label_list = json.load(jr)
         
         # Proposal
-        self.proposal_list = sio.loadmat(os.path.join(self.root, self.datamode, self.ssw_path))['boxes'][0]
+        self.proposal_list = sio.loadmat(os.path.join(self.root, self.mode, self.ssw_path))['boxes'][0]
         
         # Text
-        with open(os.path.join(self.root, self.datamode, self.text_path), 'r') as text_f:
+        with open(os.path.join(self.root, self.mode, self.text_path), 'r') as text_f:
             for idx, file_name in enumerate(text_f.readlines()):
                 file_name = file_name.rstrip()
                 
@@ -73,11 +73,14 @@ class WSDDNDataset(data.Dataset):
         file_name = self.imdb[index][0]
         proposals = self.imdb[index][1]
         img_label = self.imdb[index][2]
-        current_img = Image.open(os.path.join(self.root, self.datamode, self.jpeg_path, file_name + '.jpg'))
+        current_img = Image.open(os.path.join(self.root, self.mode, self.jpeg_path, file_name + '.jpg'))
         
         # Augmentation
-        image, proposals = self.augmentation(current_img, proposals)
+        if self.args.mode == 'train':
+            image, proposals = self.augmentation(current_img, proposals)
         
+        elif self.args.mode == 'test':
+            image = current_img
         # casting
         
         image = self.transformation(image)
