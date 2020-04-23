@@ -70,6 +70,8 @@ class WSDDN_VGG16(nn.Module):
         if image_level_label is None:
             return scores
         
+        if self.args.mode == 'test':
+            return scores
         image_level_score = torch.sum(scores, 0)
         image_level_score = torch.clamp(image_level_score, min=0, max=1)
         
