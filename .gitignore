@@ -24,3 +24,7 @@ checkpoints*
 result*
 
 pascal_voc.py
+
+# Cython module
+*.cu.o
+*.so
