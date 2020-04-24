@@ -72,10 +72,23 @@ class WSDDN_VGG16(nn.Module):
         
         if self.args.mode == 'test':
             return scores
-        image_level_score = torch.sum(scores, 0)
-        image_level_score = torch.clamp(image_level_score, min=0, max=1)
+        image_level_scores = torch.sum(scores, 0)
+        image_level_scores = torch.clamp(image_level_scores, min=0, max=1)
         
-        loss = F.binary_cross_entropy(image_level_score, image_level_label.to(torch.float32), size_average=False)
+        loss = F.binary_cross_entropy(image_level_scores, image_level_label.to(torch.float32), size_average=False)
+        #reg = self.spatial_regulariser(rois, fc7, scores, image_level_label)
         
         return scores, loss
-        
+
+    """
+    def spatial_regulariser(self, rois, fc7, scores, image_level_label):
+        K = 10
+        th = 0.6
+        N = rois.size(1)
+        ret = 0
+        for c in range(self.N_classes):
+            if image_level_label[c].item() == 0:
+                continue
+            
+            topk_scores, topk_indices = scores[:, c]
+    """ 
