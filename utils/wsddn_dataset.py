@@ -62,9 +62,9 @@ class WSDDNDataset(data.Dataset):
                 image_label_current = [0 for i in range(20)]
                 image_label_list = self.image_label_list[file_name]
                 
-                for i in range(0, len(image_label_list)):
+                for i in image_label_list:
                     image_label_current[i] = 1
-                
+                #print('image_label_current', image_label_current)
                 preprocessed_proposals = self.preprocess_proposal(file_name, self.proposal_list[idx])
                 self.imdb.append([file_name, preprocessed_proposals, image_label_current])
     
