@@ -1,7 +1,9 @@
 import os
 
-from PIL import Image, ImageDraw
+import torch
 
+from PIL import Image, ImageDraw
+from utils.cpu_nms import cpu_nms as nms
 """
 def draw_box(boxes, c='black'):
     # minX, minY, maxX, maxY
@@ -11,6 +13,50 @@ def draw_box(boxes, c='black'):
         plt.vlines(minX, minY, maxY, colors=c, lw=2)
         plt.vlines(maxX, minY, maxY, colors=c, lw=2)
 """
+
+
+def all_pair_iou(boxes_a, boxes_b):
+    """
+    Compute the IoU of all pairs
+    :param boxes_a: (n, 4) minmax form boxes
+    :param boxes_b: (m, 4) minmax form boxes
+    :return: (n, m) iou of all pairs of two set
+    """
+
+    N = boxes_a.size(0)
+    M = boxes_b.size(0)
+    max_xy = torch.min(boxes_a[:, 2:], boxes_b[:, 2:])
+    min_xy = torch.max(boxes_a[:, :2], boxes_b[:, :2])
+    inter_wh = torch.clamp((max_xy - min_xy + 1), min=0)
+    I = inter_wh[:, 0] * inter_wh[:, 1]
+    A = (boxes_a[:, 2] - boxes_a[:, 0] + 1) * (boxes_a[:, 3] - boxes_a[:, 1] + 1)
+    B = (boxes_b[:, 2] - boxes_b[:, 0] + 1) * (boxes_b[:, 3] - boxes_b[:, 1] + 1)
+    U = A + B - I
+    return I / U
+
+
+def apply_nms(all_boxes, thresh):
+    """Apply non-maximum suppression to all predicted boxes output by 솓
+    test_net method.
+    """
+    num_classes = len(all_boxes)
+    num_image = len(all_boxes[0])
+    nms_boxes = [[[] for _ in range(num_image)] for _ in range(num_classes)]
+    
+    for cls_ind in range(num_classes):
+        for im_ind in range(num_image):
+            dets = all_boxes[cls_ind][im_ind]
+            if dets == []:
+                continue
+            
+            keep = nms(dets, thresh, force_cpu=True)
+            if len(keep) == 0:
+                continue
+            
+            nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
+        
+    return nms_boxes
+    
 
 def draw_box(image, boxes, result_dir, file_name):
     
@@ -28,8 +74,9 @@ def tensor_to_image(img_tensors):
         array = array.squeeze(0)
     elif array.shape[0] == 3:
         array = array.swapaxes(0, 1).swapaxes(1, 2)
-    print('arrayy', array.shape)
+    
     return Image.fromarray(array)
+
 
 def make_directory(*dirs):
     for directory in dirs:
