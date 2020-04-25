@@ -25,12 +25,12 @@ def all_pair_iou(boxes_a, boxes_b):
 
     N = boxes_a.size(0)
     M = boxes_b.size(0)
-    max_xy = torch.min(boxes_a[:, 2:], boxes_b[:, 2:])
-    min_xy = torch.max(boxes_a[:, :2], boxes_b[:, :2])
+    max_xy = torch.min(boxes_a[:, 2:].unsqueeze(1).expand(N, M, 2), boxes_b[:, 2:].unsqueeze(0).expand(N, M, 2))
+    min_xy = torch.max(boxes_a[:, :2].unsqueeze(1).expand(N, M, 2), boxes_b[:, :2].unsqueeze(0).expand(N, M, 2))
     inter_wh = torch.clamp((max_xy - min_xy + 1), min=0)
-    I = inter_wh[:, 0] * inter_wh[:, 1]
-    A = (boxes_a[:, 2] - boxes_a[:, 0] + 1) * (boxes_a[:, 3] - boxes_a[:, 1] + 1)
-    B = (boxes_b[:, 2] - boxes_b[:, 0] + 1) * (boxes_b[:, 3] - boxes_b[:, 1] + 1)
+    I = inter_wh[:, :, 0] * inter_wh[:, :, 1]
+    A = ((boxes_a[:, 2] - boxes_a[:, 0] + 1) * (boxes_a[:, 3] - boxes_a[:, 1] + 1)).unsqueeze(1).expand_as(I)
+    B = ((boxes_b[:, 2] - boxes_b[:, 0] + 1) * (boxes_b[:, 3] - boxes_b[:, 1] + 1)).unsqueeze(0).expand_as(I)
     U = A + B - I
     return I / U
 
