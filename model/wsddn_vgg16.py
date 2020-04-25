@@ -7,6 +7,7 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils.util import all_pair_iou
 from model.roi_align.modules.roi_align import RoIAlignAvg
 from model.roi_pooling.modules.roi_pool import _RoIPooling
 
@@ -74,21 +75,38 @@ class WSDDN_VGG16(nn.Module):
             return scores
         image_level_scores = torch.sum(scores, 0)
         image_level_scores = torch.clamp(image_level_scores, min=0, max=1)
-        
         loss = F.binary_cross_entropy(image_level_scores, image_level_label.to(torch.float32), size_average=False)
-        #reg = self.spatial_regulariser(rois, fc7, scores, image_level_label)
+        reg = self.spatial_regulariser(rois[0], fc7, scores, image_level_label)
         
-        return scores, loss
+        return scores, loss, reg
 
-    """
+    
     def spatial_regulariser(self, rois, fc7, scores, image_level_label):
         K = 10
         th = 0.6
         N = rois.size(1)
         ret = 0
-        for c in range(self.N_classes):
+        for c in range(self.num_classes):
             if image_level_label[c].item() == 0:
                 continue
-            
-            topk_scores, topk_indices = scores[:, c]
-    """ 
+            topk_scores, topk_indices = scores[:, c].topk(K, dim=0) 
+            topk_boxes = rois[topk_indices]
+            topk_features = fc7[topk_indices]
+
+            mask = all_pair_iou(topk_boxes[0:1, :], topk_boxes).view(K).gt(th).float()
+
+            diff = topk_features - topk_features[0]
+            diff = diff * topk_scores.detach().view(K, 1)
+
+            ret = (torch.pow(diff, 2).sum(1) * mask).sum() * 0.5 + ret
+        
+        return ret
+
+
+
+
+
+
+
+
+
