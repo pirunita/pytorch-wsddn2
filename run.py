@@ -45,6 +45,8 @@ def get_args():
     parser.add_argument('--mode', type=str, default='train', help='train / test')
     
     parser.add_argument('--gpu_id', type=int, default=0)
+
+    parser.add_argument('--alpha', type=float, default=0.0001, help='alpha for spatial regularization')
     parser.add_argument('--learning_rate', type=float, default=0.00001, help='Starting learning rate', )
     parser.add_argument('--start_epoch', type=int, default=1)
     parser.add_argument('--epoch', dest='max_epoch', type=int, default=20)
@@ -105,6 +107,7 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
     for epoch in tqdm.tqdm(range(args.start_epoch, args.max_epoch + 1), desc='Training'):
         loss_sum = 0
         iter_sum = 0
+        reg_sum = 0
         start_time = time.time()
         
         
@@ -114,9 +117,11 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
             labels = labels.cuda()
 
             # No regressor
-            scores, loss = model(image, proposals, image_level_label=labels)
+            # image_level_label [1, 20] > [20,]
+            scores, loss, reg = model(image, proposals, image_level_label=labels[0])
             
             # Iterate Update
+            reg = reg * args.alpha
             loss_sum += loss.item()
             iter_sum += 1
             total_sum += 1
@@ -130,11 +135,12 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
             if step % args.disp_count == 0 and step > 0:
                 board.add_scalar('Train/loss', loss_sum / iter_sum, total_sum)
                 t = time.time() - start_time
-                logger.info("net %s, epoch %2d, iter %4d, time: %.3f, loss: %.4f, lr: %.2e" %
-                            (args.pretrained_name, epoch, step, t, loss_sum / iter_sum, lr))
-                log_writer.write("[net %s][session %d][epoch %2d][iter %4d][time %.3f][loss %.4f][lr %.2e]\n" %
-                            (args.pretrained_name, args.session, epoch, step, t, loss_sum / iter_sum, lr))
+                logger.info("net %s, epoch %2d, iter %4d, time: %.3f, loss: %.4f, reg: %.4f, lr: %.2e" %
+                            (args.pretrained_name, epoch, step, t, loss_sum / iter_sum, reg_sum / iter_sum, lr))
+                log_writer.write("[net %s][session %d][epoch %2d][iter %4d][time %.3f][loss %.4f][reg %.4f][lr %.2e]\n" %
+                            (args.pretrained_name, args.session, epoch, step, t, loss_sum / iter_sum, reg_sum / iter_sum, lr))
                 loss_sum = 0
+                reg_sum = 0
                 iter_sum = 0
         
         log_writer.flush()
@@ -154,7 +160,7 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
             
             save_checkpoint(checkpoint, checkpoint_name)
             logger.info('save model: {}'.format(checkpoint_name))
-    
+
     board.close()
     final_checkpoint_name = os.path.join(checkpoint_dir, '{}_{}_{}.pth'.format(args.pretrained_name, args.session, 'final'))
     checkpoint = dict()
@@ -208,7 +214,6 @@ def test(args, model, test_dataset):
         image = image.cuda()
         proposals = proposals.cuda()
         labels = labels.cuda()
-        
         # scores, (# of proposals, classes)
         
         scores = model(image, proposals, image_level_label=labels).detach().cpu().numpy()
