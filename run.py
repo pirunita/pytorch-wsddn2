@@ -87,6 +87,11 @@ def get_args():
 
 
 def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
+    np.random.seed(3)
+    torch.manual_seed(4)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(5)
+
     model.cuda()
     model.train()
     lr = args.learning_rate
@@ -117,7 +122,7 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
             labels = labels.cuda()
 
             # No regressor
-            # image_level_label [1, 20] > [20,]
+            # image_level_label [1, 20]
             scores, loss, reg = model(image, proposals, image_level_label=labels[0])
             
             # Iterate Update
@@ -179,6 +184,11 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
 
 
 def test(args, model, test_dataset):
+    np.random.seed(3)
+    torch.manual_seed(3)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(5)
+        
     model.cuda()
     model.eval()
     
