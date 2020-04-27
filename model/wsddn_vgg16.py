@@ -45,7 +45,18 @@ class WSDDN_VGG16(nn.Module):
         
         self.roi_pooling = _RoIPooling(7, 7, 1.0 / 16.0)
         self.roi_align = RoIAlignAvg(7, 7, 1.0 / 16.0)
-        
+        self._init_weights()
+
+    def _init_weights(self):
+        def normal_init(m, mean, stddev, truncated=False):
+            if truncated:
+                m.weight.data.normal_().fmod_(2).mul(stddev).add_(mean)
+            else:
+                m.weight.data.normal_(mean, stddev)
+                m.bias.data.zero_()
+
+        normal_init(self.fc8c, 0, 0.01, False)
+        normal_init(self.fc8d, 0, 0.01, False)
         
     def forward(self, image, rois, proposal_score=None, image_level_label=None):
         N = rois.size(1)
@@ -84,7 +95,7 @@ class WSDDN_VGG16(nn.Module):
     def spatial_regulariser(self, rois, fc7, scores, image_level_label):
         K = 10
         th = 0.6
-        N = rois.size(1)
+        N = rois.size(0)
         ret = 0
         for c in range(self.num_classes):
             if image_level_label[c].item() == 0:
