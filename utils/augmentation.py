@@ -5,7 +5,7 @@ import torchvision
 
 from PIL import Image, ImageOps
 
-
+"""한번더"""
 class Augmentation(object):
     def __init__(self):
         self.compose = Compose([

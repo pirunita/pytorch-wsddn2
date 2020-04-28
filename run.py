@@ -106,6 +106,8 @@ def train(args, model, train_dataset, board, log_writer, checkpoint_dir):
                 params += [{'params': [value], 'lr': lr, 'weight_decay': 0.0005}]
                 
     optimizer = torch.optim.SGD(params, momentum=0.9)
+    
+    #true
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0) 
     
     total_sum = 0
