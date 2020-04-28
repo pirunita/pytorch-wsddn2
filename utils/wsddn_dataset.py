@@ -78,9 +78,10 @@ class WSDDNDataset(data.Dataset):
         # Augmentation
         if self.args.mode == 'train':
             image, proposals = self.augmentation(current_img, proposals)
-        
+            
         elif self.args.mode == 'test':
             image = current_img
+    
         # casting
         
         image = self.transformation(image)
